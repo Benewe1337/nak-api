@@ -34,6 +34,11 @@ type rec struct {
 }
 
 func fakeTransfer(t *testing.T) (*client.Client, *[]rec) {
+	return fakeTransferWith(t, confirmPage)
+}
+
+// fakeTransferWith answers step 1 (confirmNew) with the given page.
+func fakeTransferWith(t *testing.T, confirmNewPage string) (*client.Client, *[]rec) {
 	var mu sync.Mutex
 	var log []rec
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -47,7 +52,7 @@ func fakeTransfer(t *testing.T) (*client.Client, *[]rec) {
 		case "new":
 			io.WriteString(w, read(t, "beantragen.html"))
 		case "confirmNew":
-			io.WriteString(w, confirmPage)
+			io.WriteString(w, confirmNewPage)
 		case "create":
 			io.WriteString(w, `<main><div class="typo3-messages"><div class="alert alert-success">Transferleistung wurde beantragt.</div></div></main><a href="/login/?logintype=logout">x</a>`)
 		default:
@@ -134,5 +139,55 @@ func TestBewertungFollowsSignedLink(t *testing.T) {
 	}
 	if _, err := FetchBewertung(c, "1"); err == nil {
 		t.Error("unknown id accepted")
+	}
+}
+
+// Live behaviour seen on 14.10.2026: the CIS skipped the confirmation view and
+// registered on confirmNew, answering with the list plus a success flash.
+const directSuccessPage = `<html><body><main><div class="typo3-messages"><div class="alert alert-success" role="alert">
+<div class="media"><div class="media-body"><h4 class="alert-title">Erfolg:</h4>
+<p class="alert-message">Antrag zur 5. Transferleistung ist eingegangen.</p></div></div></div></div>
+<table><tr><td>5</td></tr></table></main><a href="/login/?logintype=logout">Logout</a></body></html>`
+
+const directErrorPage = `<html><body><main><div class="typo3-messages"><div class="alert alert-danger" role="alert">
+<h4 class="alert-title">Fehler:</h4><p class="alert-message">Bitte laden Sie eine Auftragsklärung hoch.</p></div></div>
+</main><a href="/login/?logintype=logout">Logout</a></body></html>`
+
+func registerOnce(t *testing.T, page string) (string, error, []rec) {
+	c, log := fakeTransferWith(t, page)
+	s, err := PrepareRegister(c, RegisterRequest{No: "5", Topic: "Thema X", Module: "358", File: []byte("%PDF-1.4 test")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	msg, err := Register(c, s)
+	var posts []rec
+	for _, r := range *log {
+		if r.method == http.MethodPost {
+			posts = append(posts, r)
+		}
+	}
+	return msg, err, posts
+}
+
+func TestRegisterDirectSuccessWithoutConfirmStep(t *testing.T) {
+	msg, err, posts := registerOnce(t, directSuccessPage)
+	if err != nil {
+		t.Fatalf("success page reported as error: %v", err)
+	}
+	if !strings.Contains(msg, "Antrag zur 5. Transferleistung ist eingegangen") {
+		t.Errorf("msg = %q", msg)
+	}
+	if len(posts) != 1 || posts[0].action != "confirmNew" {
+		t.Fatalf("posts = %+v", posts)
+	}
+}
+
+func TestRegisterDirectErrorStaysError(t *testing.T) {
+	_, err, posts := registerOnce(t, directErrorPage)
+	if err == nil || !strings.Contains(err.Error(), "Auftragsklärung") {
+		t.Fatalf("err = %v", err)
+	}
+	if len(posts) != 1 {
+		t.Fatalf("posts = %+v", posts)
 	}
 }

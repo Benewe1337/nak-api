@@ -17,6 +17,8 @@ import (
 //  2. POST confirmNew           → confirmation page with a form posting to action=create
 //  3. POST create               → the binding registration
 // Steps 2 and 3 only ever run in Register, i.e. after explicit confirmation.
+// Live (14.10.2026) the CIS skipped step 2 and registered on confirmNew,
+// answering with a success flash — Register accepts that as done.
 
 const maxUpload = 10 << 20
 
@@ -163,9 +165,14 @@ func Register(c *client.Client, step1 *forms.Submission) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("confirmNew: %w", err)
 	}
-	f := forms.FindByAction(forms.Parse(htmlx.Main(htmlx.MustParse(p.Body)), c.Base), "action]=create")
+	main := htmlx.Main(htmlx.MustParse(p.Body))
+	f := forms.FindByAction(forms.Parse(main, c.Base), "action]=create")
 	if f == nil {
-		return "", fmt.Errorf("the CIS did not show the confirmation step (nothing registered): %s", exams.FlashMessage(p.Body))
+		if htmlx.First(main, htmlx.Class("alert-success")) != nil {
+			return exams.FlashMessage(p.Body), nil
+		}
+		// Not provably "nothing registered": callers must check the list before retrying.
+		return "", fmt.Errorf("the CIS showed neither a confirmation step nor a success message — check the transfer list before retrying: %s", exams.FlashMessage(p.Body))
 	}
 	s2, err := f.Submit("", nil)
 	if err != nil {
