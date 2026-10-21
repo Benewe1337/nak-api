@@ -1218,6 +1218,11 @@ function norm(s) {
 
 let unitsP = null;
 let historyP = null;
+// The app stays open for days (Android keeps the WebView, a notification only
+// changes the hash): reuse these for a minute, after that ask the server cache.
+let unitsAt = 0;
+let historyAt = 0;
+const memoAge = 60_000;
 
 let pendingP = null;
 
@@ -1246,7 +1251,7 @@ function pendingRows(p, keep = () => true) {
 }
 
 function loadHistory() {
-  if (!historyP || fresh) historyP = fetch("/api/history", { credentials: "same-origin" }).then((r) => r.json()).catch(() => ({ exams: [], grades: {} }));
+  if (!historyP || fresh || Date.now() - historyAt > memoAge) historyAt = Date.now(), historyP = fetch("/api/history", { credentials: "same-origin" }).then((r) => r.json()).catch(() => ({ exams: [], grades: {} }));
   return historyP;
 }
 
@@ -1295,7 +1300,8 @@ function lecturersOf(u, m, hist) {
 }
 
 function loadUnits() {
-  if (unitsP && !fresh) return unitsP;
+  if (unitsP && !fresh && Date.now() - unitsAt < memoAge) return unitsP;
+  unitsAt = Date.now();
   unitsP = (async () => {
     const [g, p, c, x] = await Promise.allSettled([api("cis_grades"), api("cis_progress"), api("moodle_courses", { classification: "all" }), api("cis_list_klausuren")]);
     const map = new Map();
@@ -1484,6 +1490,7 @@ function gradeTile(m, u) {
   out.push(h("dl", { class: "kv meter" },
     h("dt", { text: "Prüfung" }), h("dd", { text: g.exam_date || "–" }),
     h("dt", { text: "Versuch" }), h("dd", { text: g.attempt || "–" }),
+    g.source === "notenuebersicht" && [h("dt", { text: "Quelle" }), h("dd", { text: `Notenübersicht vom ${g.entry_date || "–"}, noch nicht in der Leistungsübersicht` })],
     d?.count > 0 && [h("dt", { text: "Jahrgang" }), h("dd", { text: `Schnitt ${String(d.average).replace(".", ",")} · ${d.count} Ergebnisse${d.percentile ? ` · besser als ${Math.round(d.percentile)} %` : ""}` })]));
   if (d?.buckets?.length) {
     const max = Math.max(...d.buckets.map((b) => b.count), 1);
@@ -1538,6 +1545,9 @@ function examTimeline(u, m, hist, current) {
   if (g?.exam_date && !steps.some((x) => x.exam_date === g.exam_date && x.grade === g.grade)) steps.push(g);
   for (const st of steps) put(st);
   const rows = [...byKey.values()].sort((a, b) => b.at - a.at);
+  // a grade from the PDF has no exam date: it belongs to the last exam taken
+  const last = g?.source === "notenuebersicht" && !g.exam_date && rows.find((r) => !r.upcoming);
+  if (last && !last.result) last.result = g;
   if (!rows.length) return emptyRow("Noch keine Prüfungstermine bekannt. naknak merkt sich ab jetzt jeden Termin, den das CIS anzeigt.");
   return h("ol", { class: "timeline" }, rows.map((r, j) => {
     const res = r.result;
@@ -2047,6 +2057,7 @@ function listenBell() {
   bell.es = new EventSource("/api/events");
   bell.es.addEventListener("notification", (e) => {
     const n = JSON.parse(e.data);
+    if (n.kind === "grade") unitsP = historyP = null;
     bell.items.unshift(n);
     bell.unread++;
     drawBell();

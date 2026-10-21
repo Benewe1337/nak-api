@@ -316,6 +316,10 @@ func Registry() *tools.Registry {
 				"balance":          map[string]any{"Kopierguthaben": "7,40 €"}}, nil
 		}),
 		read("cis_grades", "Demo-Noten", func(*app.App, tools.Args) (any, error) { return grades(), nil }),
+		// the PDF already knows the Datenbanksysteme grade the page does not show yet
+		read("cis_transcript_grades", "Demo-Notenübersicht", func(*app.App, tools.Args) (any, error) {
+			return map[string]any{"date": "02.10.2026", "modules": []map[string]any{{"module_nr": "I160", "title": "Datenbanksysteme", "grade": "1,3", "credits": "6"}}}, nil
+		}),
 		read("cis_progress", "Demo-Studienfortschritt", func(*app.App, tools.Args) (any, error) { return progress(), nil }),
 		read("cis_list_klausuren", "Demo-Prüfungen", func(a *app.App, _ tools.Args) (any, error) { return exams(a), nil }),
 		read("moodle_courses", "Demo-Kurse", func(_ *app.App, args tools.Args) (any, error) { return courses(args.Str("classification")), nil }),

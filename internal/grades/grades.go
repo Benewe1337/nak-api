@@ -42,6 +42,9 @@ type ModuleGrade struct {
 	PerformanceID string   `json:"performance_id,omitempty"`
 	StatisticURL  string   `json:"statistic_url,omitempty"`
 	AttendanceURL string   `json:"attendance_url,omitempty"`
+	// Source is SourceTranscript when the grade comes from the Notenübersicht
+	// PDF and the page does not show it yet.
+	Source string `json:"source,omitempty"`
 }
 
 type SeminarGrade struct {

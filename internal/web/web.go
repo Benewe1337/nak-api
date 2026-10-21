@@ -522,20 +522,20 @@ func (s *Server) callTool(w http.ResponseWriter, r *http.Request) {
 			age := s.cfg.Now().Sub(e.At)
 			switch {
 			case t.Kind == tools.Local || age < s.freshFor(t.Name):
-				s.respond(w, t, e.Res, e.At, true, false, "")
+				s.respond(w, t, args, e.Res, e.At, true, false, "")
 				return
 			case age < maxStale && !wait:
 				// stale-while-revalidate: answer now, refresh behind it
 				go s.refresh(t, key, args)
-				s.respond(w, t, e.Res, e.At, true, true, "")
+				s.respond(w, t, args, e.Res, e.At, true, true, "")
 				return
 			case age < maxStale:
 				res, at, err := s.refresh(t, key, args)
 				if err != nil {
-					s.respond(w, t, e.Res, e.At, true, true, err.Error())
+					s.respond(w, t, args, e.Res, e.At, true, true, err.Error())
 					return
 				}
-				s.respond(w, t, res, at, false, false, "")
+				s.respond(w, t, args, res, at, false, false, "")
 				return
 			}
 		}
@@ -567,7 +567,7 @@ func (s *Server) callTool(w http.ResponseWriter, r *http.Request) {
 		// anything read before a binding change may be outdated now
 		s.store.clear()
 	}
-	s.respond(w, t, res, at, false, false, "")
+	s.respond(w, t, args, res, at, false, false, "")
 }
 
 func (s *Server) freshFor(tool string) time.Duration {
@@ -621,10 +621,11 @@ func resultPath(res json.RawMessage) string {
 	return m.Path
 }
 
-func (s *Server) respond(w http.ResponseWriter, t *tools.Tool, res json.RawMessage, at time.Time, hit, stale bool, refreshErr string) {
+func (s *Server) respond(w http.ResponseWriter, t *tools.Tool, args tools.Args, res json.RawMessage, at time.Time, hit, stale bool, refreshErr string) {
 	if hit {
 		s.stats.hit(t.Name)
 	}
+	res = s.withTranscript(t.Name, args, res, at)
 	out := map[string]any{"tool": t.Name, "result": res, "cached": hit, "fetched_at": at.Format(time.RFC3339)}
 	if stale {
 		out["stale"] = true

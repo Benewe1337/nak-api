@@ -103,3 +103,59 @@ func NormalizeGrade(g string) string {
 	g = strings.ToLower(spaceRe.ReplaceAllString(g, ""))
 	return strings.TrimRight(g, "*⁂")
 }
+
+const SourceTranscript = "notenuebersicht"
+
+// ApplyTranscript fills in grades the page does not show yet; a grade the page
+// shows differently is only replaced if the PDF is the newer of the two (the
+// page lags behind, so a fresher page without the grade proves nothing).
+// Returns the module numbers changed.
+func (o *Overview) ApplyTranscript(t *TranscriptGrades, pdfNewer bool) []string {
+	var changed []string
+	for _, tg := range t.Modules {
+		m := o.findAny(tg.ModuleNr)
+		if m != nil && (NormalizeGrade(m.Grade) == NormalizeGrade(tg.Grade) || strings.TrimSpace(m.Grade) != "" && !pdfNewer) {
+			continue
+		}
+		if m == nil {
+			o.Modules = append(o.Modules, ModuleGrade{ModuleNr: tg.ModuleNr, Title: tg.Title})
+			m = &o.Modules[len(o.Modules)-1]
+		}
+		if strings.TrimSpace(m.Grade) != "" {
+			// the dates belong to the result being replaced
+			m.ExamDate = ""
+		}
+		m.Grade = tg.Grade
+		m.GradeValue, m.Attempt, m.Status = parseGrade(tg.Grade)
+		m.Recognized = strings.Contains(tg.Grade, "*")
+		m.EntryDate = t.Date
+		if m.Credits == "" {
+			m.Credits = tg.Credits
+		}
+		m.Source = SourceTranscript
+		changed = append(changed, tg.ModuleNr)
+	}
+	return changed
+}
+
+// findAny also matches rows listing several numbers ("A222,I222").
+func (o *Overview) findAny(nr string) *ModuleGrade {
+	for _, list := range []*[]ModuleGrade{&o.Modules, &o.Extra} {
+		for i := range *list {
+			if SameModule((*list)[i].ModuleNr, nr) {
+				return &(*list)[i]
+			}
+		}
+	}
+	return nil
+}
+
+// SameModule reports whether a comma-separated module number list contains nr.
+func SameModule(list, nr string) bool {
+	for _, x := range strings.Split(list, ",") {
+		if strings.EqualFold(strings.TrimSpace(x), strings.TrimSpace(nr)) {
+			return true
+		}
+	}
+	return false
+}
