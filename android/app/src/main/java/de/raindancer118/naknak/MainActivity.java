@@ -39,6 +39,8 @@ import androidx.browser.customtabs.CustomTabsIntent;
 import androidx.core.content.ContextCompat;
 import androidx.core.splashscreen.SplashScreen;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
+import androidx.webkit.WebSettingsCompat;
+import androidx.webkit.WebViewFeature;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -112,6 +114,13 @@ public class MainActivity extends AppCompatActivity {
         s.setAllowFileAccess(false);
         s.setAllowContentAccess(false);
         s.setUserAgentString(s.getUserAgentString() + " naknak-android/" + BuildConfig.VERSION_NAME);
+        // WebAuthn is off in a WebView by default: Authentik's passkey login
+        // then fails with "Error creating credential". FOR_APP goes through
+        // Credential Manager, which only hands out a passkey for an RP ID
+        // whose /.well-known/assetlinks.json names this app (portal.tstieh.de).
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_AUTHENTICATION)) {
+            WebSettingsCompat.setWebAuthenticationSupport(s, WebSettingsCompat.WEB_AUTHENTICATION_SUPPORT_FOR_APP);
+        }
         CookieManager.getInstance().setAcceptCookie(true);
 
         web.setWebViewClient(new WebViewClient() {
