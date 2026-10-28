@@ -328,3 +328,56 @@ func TestPendingGradeDueAfterFourLectureWeeks(t *testing.T) {
 		t.Fatalf("graded exam still pending (%d)", n)
 	}
 }
+
+// A module whose next attempt is written but not graded shows no grade at all — not the
+// 5,0 of the earlier attempt (Tom, 28.10.2026). Once the result is in, it shows again.
+func TestPendingAttemptHidesTheEarlierGrade(t *testing.T) {
+	w := newWatchHarness(t, app.NotifySettings{})
+	w.f.pageExtra = []map[string]any{{"module_nr": "I168", "title": "Diskrete Mathematik 2", "exam_date": "10.07.2026", "grade": "5,0", "grade_value": 5.0, "attempt": 1, "status": "nicht bestanden", "credits": "5"}}
+	w.f.exams = []map[string]any{{"exam_id": "77", "module_nr": "A222,I222", "title": "Diskrete Mathematik 2", "start": "02.10.2026 08:30", "registered": true}}
+	w.srv.cachedTool("cis_list_klausuren", tools.Args{})
+	srv := httptest.NewServer(w.srv.Handler())
+	t.Cleanup(srv.Close)
+	module := func() map[string]any {
+		t.Helper()
+		req, _ := http.NewRequest("POST", srv.URL+"/api/tools/cis_grades", strings.NewReader("{}"))
+		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("Content-Type", "application/json")
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		var out struct {
+			Result struct {
+				Overview struct {
+					Modules []map[string]any `json:"modules"`
+				} `json:"overview"`
+				Stats map[string]any `json:"stats"`
+			} `json:"result"`
+		}
+		json.NewDecoder(res.Body).Decode(&out)
+		for _, m := range out.Result.Overview.Modules {
+			if m["module_nr"] == "I168" {
+				m["failed_total"] = out.Result.Stats["failed"]
+				return m
+			}
+		}
+		t.Fatal("I168 missing")
+		return nil
+	}
+	m := module()
+	if m["grade"] != "" || m["status"] != "ausstehend" || m["grade_value"] != nil {
+		t.Fatalf("pending module shows %v / %v / %v", m["grade"], m["status"], m["grade_value"])
+	}
+	if m["failed_total"] != 0.0 && m["failed_total"] != nil {
+		t.Fatalf("pending attempt still counted as failed: %v", m["failed_total"])
+	}
+	// the result arrives: shown again
+	w.f.transcript = []map[string]any{{"module_nr": "I168", "title": "Diskrete Mathematik 2", "grade": "2,7"}}
+	*w.now = w.now.Add(time.Hour)
+	w.srv.cachedTool("cis_transcript_grades", tools.Args{})
+	if m := module(); m["status"] == "ausstehend" || m["grade"] == "" {
+		t.Fatalf("graded module still hidden: %v", m)
+	}
+}

@@ -626,6 +626,7 @@ func (s *Server) respond(w http.ResponseWriter, t *tools.Tool, args tools.Args, 
 		s.stats.hit(t.Name)
 	}
 	res = s.withTranscript(t.Name, args, res, at)
+	res = s.withPendingAttempts(t.Name, args, res)
 	out := map[string]any{"tool": t.Name, "result": res, "cached": hit, "fetched_at": at.Format(time.RFC3339)}
 	if stale {
 		out["stale"] = true
