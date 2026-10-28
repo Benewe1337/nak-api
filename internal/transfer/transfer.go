@@ -39,6 +39,28 @@ type Report struct {
 	Action         string      `json:"action"`         // first action ("performance", "upload", …)
 	ActionURL      string      `json:"action_url"`     // cHash-signed link from the page
 	Actions        []RowAction `json:"actions,omitempty"`
+	Running        bool        `json:"running,omitempty"` // IsRunning: writing time runs, not submitted yet
+}
+
+// IsRunning: registered and its writing time runs, not submitted yet — the CIS says
+// "Erstellungszeit läuft" and offers the upload; graded or submitted ones are not running.
+func (r Report) IsRunning() bool {
+	st := strings.ToLower(r.Status)
+	if strings.Contains(st, "bewertet") || strings.Contains(st, "abgegeben") || strings.Contains(st, "eingereicht") || r.Wertung != "" {
+		return false
+	}
+	if strings.Contains(st, "erstellungszeit") || strings.Contains(st, "läuft") {
+		return true
+	}
+	if r.Action == "upload" {
+		return true
+	}
+	for _, a := range r.Actions {
+		if a.Action == "upload" {
+			return true
+		}
+	}
+	return false
 }
 
 // RowAction is one icon link of a report row.
@@ -220,6 +242,7 @@ func parseList(body, base string) []Report {
 	walk = func(n *html.Node) {
 		if n.Type == html.ElementNode && n.Data == "tr" {
 			if r, ok := parseListRow(n, base); ok {
+				r.Running = r.IsRunning()
 				reports = append(reports, r)
 			}
 			return

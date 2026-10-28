@@ -78,3 +78,32 @@ func TestPlanWithoutOldQuarters(t *testing.T) {
 		t.Errorf("TP1 without CIS dates: %+v", s)
 	}
 }
+
+// A report whose writing time runs (registered, not submitted) is in progress while its latest
+// submission date has not passed — even after its planned practical phase (Tom, 28.10.2026).
+func TestRunningReportIsInProgressUntilItsDeadline(t *testing.T) {
+	reports := []Report{
+		{No: "1", Abgabedatum: "10.07.2024", Wertung: "bestanden"},
+		{No: "2", Abgabedatum: "29.04.2025", Wertung: "bestanden"},
+		{No: "3", Abgabedatum: "12.11.2025", Wertung: "bestanden"},
+		{No: "4", Abgabedatum: "26.06.2026", Wertung: "bestanden"},
+		{No: "5", Abgabedatum: "11.11.2026", Status: "Erstellungszeit läuft", Action: "upload"},
+	}
+	r := reports[4]
+	if !r.IsRunning() || reports[0].IsRunning() {
+		t.Fatal("running not recognised")
+	}
+	p := BuildPlan("Wirtschaftsinformatik (B.Sc.)", "I23a", quarters, reports, d("28.10.2026"))
+	if s := p.Slots[4]; s.State != "progress" || s.Abgabe != "11.11.2026" || !s.Running {
+		t.Fatalf("T5 %+v", s)
+	}
+	// only T6 (planned for III/26, not started) is behind; T5 runs within its deadline
+	if p.Behind != 1 || p.Slots[5].State != "behind" {
+		t.Errorf("behind = %d, T6 %+v", p.Behind, p.Slots[5])
+	}
+	// once the latest submission date has passed without a submission, it is behind
+	late := BuildPlan("Wirtschaftsinformatik (B.Sc.)", "I23a", quarters, reports, d("12.11.2026"))
+	if s := late.Slots[4]; s.State != "behind" {
+		t.Errorf("T5 after its deadline %+v", s)
+	}
+}

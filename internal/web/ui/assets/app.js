@@ -157,6 +157,7 @@ function parseDE(s) {
 
 const fmtDay = new Intl.DateTimeFormat("de-DE", { weekday: "long", day: "numeric", month: "long" });
 const fmtShort = new Intl.DateTimeFormat("de-DE", { weekday: "short", day: "2-digit", month: "2-digit" });
+const fmtShortYear = new Intl.DateTimeFormat("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" });
 const fmtTime = new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute: "2-digit" });
 const wd = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
 
@@ -2549,11 +2550,24 @@ function tlPhase(ps) {
   return `Praxisphase ${ps.phase} (${ps.phase_from.slice(0, 6)}–${ps.phase_to})`;
 }
 
+// a report whose writing time runs: latest submission day and how much time is left
+function tlRunning(x) {
+  if (!x?.running) return null;
+  const due = parseDE(x.abgabedatum);
+  if (!due) return { due: null, left: null, upload: (x.actions || []).find((a) => a.action === "upload")?.url || (x.action === "upload" ? x.action_url : "") };
+  return { due, left: dayDiff(due), upload: (x.actions || []).find((a) => a.action === "upload")?.url || (x.action === "upload" ? x.action_url : "") };
+}
+
+const tlLeft = (n) => n < 0 ? "Abgabe verpasst" : n === 0 ? "heute abgeben" : n === 1 ? "noch 1 Tag" : `noch ${n} Tage`;
+
 function tlRow(slot, j, { details = false } = {}) {
   const x = slot.tl, ps = slot.plan;
   const nr = tlModuleNr(x);
+  const run = tlRunning(x);
   let chip;
-  if (ps && (!x || !tlPassed(x) || ps.state === "late")) {
+  if (run) {
+    chip = h("span", { class: `chip ${run.left == null ? "" : run.left < 0 ? "bad" : run.left <= 7 ? "due" : ""}`, text: run.left == null ? "läuft" : `läuft · ${tlLeft(run.left)}` });
+  } else if (ps && (!x || !tlPassed(x) || ps.state === "late")) {
     const [label, cls] = tlStateLabel[ps.state] || [ps.state, ""];
     chip = h("span", { class: `chip ${cls}`, text: ps.state === "late" ? `bestanden · ${ps.weeks_off} Wo. später` : label });
   } else {
@@ -2564,7 +2578,8 @@ function tlRow(slot, j, { details = false } = {}) {
     h("span", { class: "ext tl", text: `T${slot.no}` }),
     x ? h("span", { class: "t" }, x.topic || "Thema offen", h("span", { class: "s" },
       nr ? h("a", { href: `#/modul/${nr}`, text: x.module }) : (x.module || ""),
-      [x.abgabedatum && ` · Abgabe bis ${x.abgabedatum}`, x.versuch && ` · ${x.versuch}. Versuch (max. 3)`, ps && ` · ${tlPhase(ps)}`].filter(Boolean).join("")))
+      [run?.due ? ` · spätestens abgeben am ${fmtShortYear.format(run.due)}` : x.abgabedatum && ` · Abgabe bis ${x.abgabedatum}`, x.versuch && ` · ${x.versuch}. Versuch (max. 3)`, ps && ` · ${tlPhase(ps)}`].filter(Boolean).join(""),
+      run?.upload && [" · ", h("a", { href: run.upload, target: "_blank", rel: "noopener", text: "im CIS hochladen" })]))
       : h("span", { class: "t" }, `Transfermodul Theorie/Praxis ${slot.no}`, h("span", { class: "s", text: [ps ? tlPhase(ps) : "noch offen"].filter(Boolean).join(" · ") + when })),
     chip);
   if (!x || !details) return h("li", { vars: { "--j": j } }, head);
@@ -2592,7 +2607,9 @@ function tlAdvice(plan, st, list) {
   const started = new Set((list || []).map((x) => Number(x.no)));
   for (const p of plan.slots.filter((p) => p.state === "progress" || (started.has(p.no) && p.state === "behind" && !/bestanden/i.test(p.wertung || "")))) {
     const tl = (list || []).find((x) => Number(x.no) === p.no);
-    out.push(h("p", { class: "empty" }, h("b", { text: `T${p.no} läuft` }), tl?.abgabedatum ? `: Abgabe bis ${tl.abgabedatum}.` : "."));
+    const run = tlRunning(tl);
+    out.push(h("p", { class: `empty ${run?.left != null && run.left <= 7 ? "tl-alert due" : ""}` }, h("b", { text: `T${p.no} läuft` }),
+      run?.due ? `: spätestens abgeben am ${fmtShortYear.format(run.due)} (${tlLeft(run.left)}).` : tl?.abgabedatum ? `: Abgabe bis ${tl.abgabedatum}.` : "."));
   }
   const n = plan.slots.find((p) => !started.has(p.no));
   if (n) {

@@ -657,6 +657,8 @@ func demoTransfers() []map[string]any {
 		{"id": "6597", "no": "1", "abgabedatum": "30.09.2025", "topic": "Kennzahlen für den Service Desk", "module": "Allgemeine Betriebswirtschaftslehre (I169)", "wertung": "bestanden", "versuch": "1", "status": "bewertet"},
 		{"id": "6598", "no": "2", "abgabedatum": "10.05.2026", "topic": "Auswahl einer CI/CD-Plattform", "module": "Praxis der Softwareentwicklung (I143)", "wertung": "bestanden", "versuch": "1", "status": "bewertet"},
 		{"id": "6602", "no": "3", "abgabedatum": "09.10.2026", "korrekturfrist": "06.11.2026", "topic": "Datenqualität im Betrieb", "module": "Datenbanksysteme (I160)", "wertung": "", "versuch": "1", "status": "angemeldet"},
+		{"id": "6611", "no": "4", "abgabedatum": time.Now().AddDate(0, 0, 10).Format("02.01.2006"), "topic": "Standardisierte Projektsteckbriefe", "module": "IT-Organisation und Projektmanagement (I162)", "wertung": "", "versuch": "1",
+			"status": "Erstellungszeit läuft", "action": "upload", "running": true, "action_url": "https://cis.nordakademie.de/studium/bachelor/transferleistungen-praxisberichte"},
 	}
 }
 

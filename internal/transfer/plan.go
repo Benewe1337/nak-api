@@ -58,6 +58,7 @@ type PlanSlot struct {
 	Abgabe   string `json:"abgabe,omitempty"`
 	Wertung  string `json:"wertung,omitempty"`
 	WeeksOff int    `json:"weeks_off,omitempty"` // late: weeks after the phase end
+	Running  bool   `json:"running,omitempty"`   // writing time runs, not submitted yet (see Report.IsRunning)
 }
 
 type Plan struct {
@@ -106,12 +107,22 @@ func BuildPlan(programme, zenturie string, quarters []Quarter, reports []Report,
 		if have {
 			s.Abgabe, s.Wertung = r.Abgabedatum, r.Wertung
 		}
+		running := have && !passed && r.IsRunning()
+		s.Running = running
+		deadline, hasDeadline := time.Time{}, false
+		if running {
+			if a, err := time.ParseInLocation("02.01.2006", strings.TrimSpace(r.Abgabedatum), now.Location()); err == nil {
+				deadline, hasDeadline = a.AddDate(0, 0, 1), true // the whole submission day counts
+			}
+		}
 		switch {
 		case passed:
 			s.State = "done"
 			if a, err := time.ParseInLocation("02.01.2006", strings.TrimSpace(r.Abgabedatum), now.Location()); err == nil && a.After(to) {
 				s.State, s.WeeksOff = "late", int(a.Sub(to).Hours()/24/7+0.5)
 			}
+		case running && hasDeadline && now.Before(deadline):
+			s.State = "progress"
 		case now.After(to):
 			s.State = "behind"
 		case have:

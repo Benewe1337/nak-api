@@ -43,6 +43,21 @@ func TestParseList(t *testing.T) {
 	if first.Topic == "" || first.Module == "" {
 		t.Errorf("topic/module empty: %+v", first)
 	}
+	if first.Running {
+		t.Error("a graded report counts as running")
+	}
+	running := 0
+	for _, r := range reports {
+		if r.Running {
+			running++
+			if r.Abgabedatum == "" || r.Wertung != "" {
+				t.Errorf("running report without deadline or with a result: %+v", r)
+			}
+		}
+	}
+	if running != 1 {
+		t.Errorf("running = %d, want the one whose Erstellungszeit läuft", running)
+	}
 }
 
 func TestParseBewertung(t *testing.T) {

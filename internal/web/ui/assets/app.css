@@ -1370,6 +1370,7 @@ html.private .toast { filter: blur(6px); }
 .tl-alert { margin: .4rem 0; padding: .55rem .8rem; border-radius: 12px; font-size: .92rem; }
 .tl-alert.bad { background: color-mix(in oklab, var(--bad, #c0392b) 14%, transparent); }
 .tl-alert.ok { background: color-mix(in oklab, var(--ok, #2e8b57) 14%, transparent); }
+.tl-alert.due { background: color-mix(in oklab, var(--due, #d4a017) 16%, transparent); }
 .rows .row.past { opacity: .55; }
 .thesis-result { margin-top: .75rem; }
 .bad-text { color: var(--bad); }
