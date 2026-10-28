@@ -143,6 +143,8 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /api/settings", s.authed(http.HandlerFunc(s.getSettings)))
 	mux.Handle("GET /api/calendar", s.authed(http.HandlerFunc(s.calendarInfo)))
 	mux.Handle("GET /api/history", s.authed(http.HandlerFunc(s.historyAPI)))
+	mux.Handle("POST /api/history/exams", s.notInDemo(s.authed(s.jsonOnly(s.addManualExam))))
+	mux.Handle("DELETE /api/history/exams/{id}", s.notInDemo(s.authed(s.sameOriginOnly(s.removeManualExam))))
 	mux.Handle("GET /api/stats", s.authed(http.HandlerFunc(s.statsAPI)))
 	mux.Handle("GET /api/export", s.authed(http.HandlerFunc(s.export)))
 	mux.Handle("GET /api/version", s.authed(http.HandlerFunc(s.version)))

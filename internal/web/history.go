@@ -38,6 +38,8 @@ type examRecord struct {
 	Dozenten   []string  `json:"dozenten,omitempty"`
 	FirstSeen  time.Time `json:"first_seen"`
 	LastSeen   time.Time `json:"last_seen"`
+	// Manual: entered by the owner ("Klausur geschrieben"), for an exam naknak never saw in the CIS.
+	Manual bool `json:"manual,omitempty"`
 }
 
 type gradeRecord struct {
@@ -205,6 +207,74 @@ func (h *history) snapshot() historySnapshot {
 		out.Grades[k] = append([]gradeRecord(nil), v...)
 	}
 	return out
+}
+
+// addManual records an exam the owner wrote but naknak never saw (the CIS drops it from the
+// exam list once it is over). It is registered by definition.
+func (h *history) addManual(nr, title, date string) examRecord {
+	now := h.now()
+	rec := examRecord{ExamID: "manual-" + nr + "-" + strings.ReplaceAll(date, ".", ""), ModuleNr: nr, Title: title,
+		Start: date, Registered: true, FirstSeen: now, LastSeen: now, Manual: true}
+	h.mu.Lock()
+	h.data.Exams[rec.ExamID] = rec
+	b, _ := json.Marshal(h.data)
+	h.mu.Unlock()
+	h.write(b)
+	return rec
+}
+
+// removeManual deletes a hand-made entry; what came from the CIS stays.
+func (h *history) removeManual(id string) bool {
+	h.mu.Lock()
+	rec, ok := h.data.Exams[id]
+	if !ok || !rec.Manual {
+		h.mu.Unlock()
+		return false
+	}
+	delete(h.data.Exams, id)
+	b, _ := json.Marshal(h.data)
+	h.mu.Unlock()
+	h.write(b)
+	return true
+}
+
+func (h *history) write(b []byte) {
+	if h.file != "" && os.WriteFile(h.file+".tmp", b, 0o600) == nil {
+		os.Rename(h.file+".tmp", h.file)
+	}
+}
+
+func (s *Server) addManualExam(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		ModuleNr string `json:"module_nr"`
+		Title    string `json:"title"`
+		Date     string `json:"date"`
+	}
+	if json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<10)).Decode(&in) != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid JSON"})
+		return
+	}
+	nr, title := strings.TrimSpace(in.ModuleNr), strings.TrimSpace(in.Title)
+	day, err := time.ParseInLocation("02.01.2006", strings.TrimSpace(in.Date), s.app.Zone)
+	now := s.cfg.Now().In(s.app.Zone)
+	switch {
+	case nr == "" || title == "" || len(nr) > 40 || len(title) > 200:
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "module_nr and title are required"})
+	case err != nil:
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "date must be DD.MM.YYYY"})
+	case day.After(now) || now.Sub(day) > pendingWindow:
+		writeJSON(w, http.StatusBadRequest, map[string]any{"error": "the exam must be in the past and not older than the grading window"})
+	default:
+		writeJSON(w, http.StatusOK, s.history.addManual(nr, title, day.Format("02.01.2006")))
+	}
+}
+
+func (s *Server) removeManualExam(w http.ResponseWriter, r *http.Request) {
+	if !s.history.removeManual(r.PathValue("id")) {
+		writeJSON(w, http.StatusNotFound, map[string]any{"error": "no hand-made exam with this id"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"removed": true})
 }
 
 func (s *Server) historyAPI(w http.ResponseWriter, r *http.Request) {

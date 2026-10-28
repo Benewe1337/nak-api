@@ -1391,3 +1391,8 @@ ul.spend-bars .lbl { font-size: .7rem; color: var(--dim); text-align: center; }
 dialog.search-dlg { width: min(40rem, calc(100vw - 2rem)); margin: 10vh auto auto; padding: 0; border: 0; background: none; overflow: visible; }
 dialog.search-dlg::backdrop { background: color-mix(in oklab, var(--bg) 55%, transparent); backdrop-filter: blur(6px); animation: fade .25s both; }
 dialog.search-dlg .search { margin: 0; }
+
+/* "Klausur schon geschrieben?" on the module page (exams naknak never saw) */
+.written { margin-top: .75rem; }
+.written-form { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.written-form input[type="date"] { min-height: 2.5rem; }

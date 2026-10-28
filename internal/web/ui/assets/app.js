@@ -659,6 +659,7 @@ function gradeClass(m) {
 }
 
 function gradeState(m) {
+  if (m.status === "ausstehend") return "pending";
   const c = gradeClass(m);
   return c === "ok" ? "passed" : c === "bad" ? "failed" : "open";
 }
@@ -704,7 +705,7 @@ async function gradesPage(root) {
       if (!rows.length) body.append(h("tr", {}, h("td", { colspan: 6, class: "empty", text: "Keine Module in dieser Ansicht." })));
     };
     const filters = h("div", { class: "filters", role: "group", "aria-label": "Filter" },
-      [["all", "Alle"], ["passed", "Bestanden"], ["open", "Offen"], ["failed", "Nicht bestanden"]].map(([k, label]) =>
+      [["all", "Alle"], ["passed", "Bestanden"], ["pending", "Note ausstehend"], ["open", "Offen"], ["failed", "Nicht bestanden"]].map(([k, label]) =>
         h("button", { type: "button", "aria-pressed": k === filter ? "true" : "false", text: label, onclick: (e) => {
           filter = k;
           for (const b of filters.children) b.setAttribute("aria-pressed", b === e.currentTarget ? "true" : "false");
@@ -1485,7 +1486,7 @@ async function unitPage(root, nr, tab = "", courseArg = "") {
 function gradeTile(m, u) {
   const g = m.grade || u?.grade;
   const d = m.distribution;
-  if (!g) return emptyRow("Noch keine Leistung eingetragen.");
+  if (!g) return [emptyRow("Noch keine Leistung eingetragen."), writtenBox(m, u)];
   const out = [h("div", { class: "avg" }, g.grade_value ? decimal(g.grade_value, 1) : h("span", { class: "big", text: "–" }), h("span", { class: `chip sens ${gradeClass(g)}`, text: g.status || "" }))];
   out.push(h("dl", { class: "kv meter" },
     h("dt", { text: "Prüfung" }), h("dd", { text: g.exam_date || "–" }),
@@ -1497,7 +1498,42 @@ function gradeTile(m, u) {
     out.push(h("div", { class: "dist sens", role: "img", "aria-label": "Notenverteilung" }, d.buckets.map((b, j) =>
       h("span", { class: `col ${b.grade === g.grade ? "mine" : ""}`, title: `${b.grade}: ${b.count}`, vars: { "--h": b.count / max, "--j": j } }, h("i"), h("small", { text: b.grade })))));
   }
+  if (!g.grade_value) out.push(writtenBox(m, u));
   return out;
+}
+
+// The CIS forgets an exam once it is over; whatever naknak did not see itself can be entered
+// here ("Klausur geschrieben"), and the module counts as "Note ausstehend" until the grade is in.
+function writtenBox(m, u) {
+  const nr = firstNr(m.module_nr || u?.nr || ""), title = m.title || u?.title || "";
+  const box = h("div", { class: "written" });
+  if (!nr || !title) return box;
+  const mine = (x) => (u ? unitMatch(u, x.module_nr.split(","), x.title) : nrsIn(x.module_nr.split(",")).includes(nr));
+  const draw = (p) => {
+    const hit = (p?.pending || []).filter(mine);
+    if (hit.length) {
+      box.replaceChildren(...hit.filter((x) => x.manual).map((x) => h("p", { class: "empty fine-note" },
+        `Klausur am ${x.written.split(" ")[0]} von dir eingetragen. `,
+        h("button", { class: "ghost", type: "button", text: "Eintrag entfernen", onclick: async () => {
+          const r = await fetch(`/api/history/exams/${encodeURIComponent(x.exam_id)}`, { method: "DELETE", credentials: "same-origin" });
+          if (r.ok) location.reload();
+        } }))));
+      return;
+    }
+    const day = h("input", { type: "date", value: new Date().toISOString().slice(0, 10), max: new Date().toISOString().slice(0, 10), "aria-label": "Datum der Klausur" });
+    const err = h("span", { class: "empty" });
+    const form = h("div", { class: "row written-form", hidden: true }, day,
+      h("button", { class: "primary", type: "button", text: "Speichern", onclick: async () => {
+        const [y, mo, dd] = day.value.split("-");
+        const r = await fetch("/api/history/exams", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ module_nr: nr, title, date: `${dd}.${mo}.${y}` }) });
+        if (r.ok) { location.reload(); return; }
+        err.textContent = (await r.json().catch(() => ({}))).error || "Konnte nicht gespeichert werden.";
+      } }), err);
+    box.replaceChildren(h("button", { class: "ghost", type: "button", text: "Klausur schon geschrieben?", onclick: (e) => { e.currentTarget.hidden = true; form.hidden = false; day.focus(); } }), form);
+  };
+  loadPending().then(draw);
+  return box;
 }
 
 // One exam often exists once per group (Zenturie) with its own id; show it

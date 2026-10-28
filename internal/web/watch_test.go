@@ -381,3 +381,54 @@ func TestPendingAttemptHidesTheEarlierGrade(t *testing.T) {
 		t.Fatalf("graded module still hidden: %v", m)
 	}
 }
+
+// An exam naknak never saw (written before it tracked exams) can be entered by hand; from
+// then on it is pending like any other, and it goes once the grade is in (Tom, 28.10.2026).
+func TestManualExamCountsAsPendingUntilGraded(t *testing.T) {
+	w := newWatchHarness(t, app.NotifySettings{})
+	w.f.pageExtra = []map[string]any{{"module_nr": "I154", "title": "Allgemeine Volkswirtschaftslehre", "grade": "", "status": "offen", "credits": "5"}}
+	srv := httptest.NewServer(w.srv.Handler())
+	t.Cleanup(srv.Close)
+	call := func(method, path, body string) *http.Response {
+		t.Helper()
+		req, _ := http.NewRequest(method, srv.URL+path, strings.NewReader(body))
+		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("Content-Type", "application/json")
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { res.Body.Close() })
+		return res
+	}
+	for _, bad := range []string{`{"module_nr":"I151","title":"Softwaretechnik","date":"03.10.2027"}`, `{"module_nr":"","title":"x","date":"30.09.2026"}`, `{"module_nr":"I151","title":"S","date":"30-09-2026"}`} {
+		if res := call("POST", "/api/history/exams", bad); res.StatusCode != 400 {
+			t.Fatalf("%s accepted: %d", bad, res.StatusCode)
+		}
+	}
+	res := call("POST", "/api/history/exams", `{"module_nr":"I154","title":"Allgemeine Volkswirtschaftslehre","date":"30.09.2026"}`)
+	var added struct {
+		ID string `json:"exam_id"`
+	}
+	json.NewDecoder(res.Body).Decode(&added)
+	if res.StatusCode != 200 || added.ID == "" {
+		t.Fatalf("add: %d %+v", res.StatusCode, added)
+	}
+	pending := w.srv.pendingExams(*w.now)
+	if len(pending) != 1 || pending[0].ModuleNr != "I154" || !pending[0].Manual {
+		t.Fatalf("pending = %+v", pending)
+	}
+	// the module shows "ausstehend"
+	raw, _ := w.srv.cachedTool("cis_grades", tools.Args{})
+	out := w.srv.withPendingAttempts("cis_grades", tools.Args{}, raw)
+	if !strings.Contains(string(out), `"status":"ausstehend"`) {
+		t.Fatalf("module not pending: %s", out)
+	}
+	// only hand-made entries can be removed
+	if res := call("DELETE", "/api/history/exams/12407", ""); res.StatusCode != 404 {
+		t.Fatalf("CIS exam deletable: %d", res.StatusCode)
+	}
+	if res := call("DELETE", "/api/history/exams/"+added.ID, ""); res.StatusCode != 200 || len(w.srv.pendingExams(*w.now)) != 0 {
+		t.Fatalf("remove: %d", res.StatusCode)
+	}
+}

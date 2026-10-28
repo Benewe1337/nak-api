@@ -95,6 +95,7 @@ func gradedSince(steps map[string][]gradeRecord, e examRecord, at time.Time, loc
 
 type pendingGrade struct {
 	ExamID   string `json:"exam_id"`
+	Manual   bool   `json:"manual,omitempty"`
 	ModuleNr string `json:"module_nr"`
 	Title    string `json:"title"`
 	Written  string `json:"written"`
@@ -121,7 +122,7 @@ func (s *Server) pendingAPI(w http.ResponseWriter, r *http.Request) {
 		lectures = append(s.lectureDays(list[0].at, list[len(list)-1].at.AddDate(0, 0, 140)), s.periodDays()...)
 	}
 	for _, p := range list {
-		pg := pendingGrade{ExamID: p.ExamID, ModuleNr: p.ModuleNr, Title: p.Title, Written: p.Start}
+		pg := pendingGrade{ExamID: p.ExamID, Manual: p.Manual, ModuleNr: p.ModuleNr, Title: p.Title, Written: p.Start}
 		if due, ok := exams.GradeDue(p.at, lectures, master); ok {
 			pg.Due, pg.DueKnown = due.Format("02.01.2006"), true
 			pg.Overdue = now.After(due.AddDate(0, 0, 1))
