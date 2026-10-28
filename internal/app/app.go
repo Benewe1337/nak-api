@@ -124,7 +124,7 @@ func (a *App) AccountSource() string {
 func (a *App) PasswordMatches(user, pass string) bool {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if a.cisUser == "" || !strings.EqualFold(strings.TrimSpace(user), a.cisUser) {
+	if a.cisUser == "" || !auth.SameUser(user, a.cisUser) {
 		return false
 	}
 	return subtle.ConstantTimeCompare([]byte(pass), []byte(a.cisPass)) == 1
@@ -133,7 +133,8 @@ func (a *App) PasswordMatches(user, pass string) bool {
 // SaveAccount stores the NAK login (0600; the CIS and Moodle need the
 // password itself for their own logins) and resets both clients.
 func (a *App) SaveAccount(user, pass string) error {
-	user = strings.TrimSpace(user)
+	// Stored short ("20066"): Moodle reuses it; the CIS login completes it (auth.CISUser).
+	user = auth.ShortUser(user)
 	b, err := json.Marshal(account{user, pass})
 	if err != nil {
 		return err

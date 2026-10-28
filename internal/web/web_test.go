@@ -606,7 +606,7 @@ func fakeCISLogin(t *testing.T) (*httptest.Server, *atomic.Int32) {
 		if r.Method == http.MethodPost {
 			posts.Add(1)
 			r.ParseForm()
-			if r.PostForm.Get("user") == "12345" && r.PostForm.Get("pass") == "right" {
+			if r.PostForm.Get("user") == "12345@nordakademie.de" && r.PostForm.Get("pass") == "right" {
 				http.SetCookie(w, &http.Cookie{Name: "fe_typo_user_cae070b", Value: "sess", Path: "/"})
 				io.WriteString(w, `<main>Willkommen</main><a href="/login/?logintype=logout">Abmelden</a>`)
 				return
@@ -717,6 +717,16 @@ func TestOwnerPinRefusesOtherAccounts(t *testing.T) {
 	b, _ := io.ReadAll(res.Body)
 	if res.StatusCode != 401 || h.app.AccountUser() != "" || posts.Load() != 0 || !strings.Contains(string(b), "anderen") {
 		t.Fatalf("pinned owner: %d owner=%q posts=%d", res.StatusCode, h.app.AccountUser(), posts.Load())
+	}
+}
+
+func TestOwnerPinAcceptsTheFullAddress(t *testing.T) {
+	t.Setenv("NAK_OWNER", "12345")
+	h, posts := accountHarness(t)
+	// the CIS login is now 12345@nordakademie.de; the pin is still the bare number
+	res := h.accountLogin(t, "12345@nordakademie.de", "right")
+	if res.StatusCode == 401 || posts.Load() == 0 {
+		t.Fatalf("owner with full address refused: %d posts=%d", res.StatusCode, posts.Load())
 	}
 }
 

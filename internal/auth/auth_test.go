@@ -43,7 +43,8 @@ func TestLoginAndRelogin(t *testing.T) {
 	if err := Login(c, "10000", "ok"); err != nil {
 		t.Fatal(err)
 	}
-	if got["user"] != "10000" || got["pid"] != "7" || got["submit"] != "Anmelden" {
+	// Since 10/2026 the CIS wants the full NORDAKADEMIE address; a bare number is completed.
+	if got["user"] != "10000@nordakademie.de" || got["pid"] != "7" || got["submit"] != "Anmelden" {
 		t.Errorf("posted = %v", got)
 	}
 	if p, err := c.Page("/mein-profil"); err != nil || p.Status != 200 {
@@ -55,5 +56,28 @@ func TestLoginAndRelogin(t *testing.T) {
 	c.Relogin = func(c *client.Client) error { return Login(c, "10000", "ok") }
 	if _, err := c.Page("/mein-profil"); err != nil {
 		t.Fatalf("relogin: %v", err)
+	}
+}
+
+func TestCISUserCompletesTheNumber(t *testing.T) {
+	for in, want := range map[string]string{
+		"20066":                 "20066@nordakademie.de",
+		" 20066 ":               "20066@nordakademie.de",
+		"20066@nordakademie.de": "20066@nordakademie.de",
+		"20066@NORDAKADEMIE.de": "20066@NORDAKADEMIE.de",
+		"jemand@example.org":    "jemand@example.org",
+	} {
+		if got := CISUser(in); got != want {
+			t.Errorf("CISUser(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestSameUserIgnoresTheDomainOfTheSameAccount(t *testing.T) {
+	if !SameUser("20066", "20066@nordakademie.de") || !SameUser("20066@Nordakademie.de", "20066") || !SameUser("20066", "20066") {
+		t.Fatal("same account not recognised")
+	}
+	if SameUser("20066", "20067@nordakademie.de") || SameUser("20066@example.org", "20066") {
+		t.Fatal("different accounts taken as the same")
 	}
 }

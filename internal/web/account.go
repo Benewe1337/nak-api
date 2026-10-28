@@ -1,6 +1,8 @@
 package web
 
 import (
+	"github.com/Raindancer118/nak-api/internal/auth"
+
 	"net/http"
 	"os"
 	"strings"
@@ -25,7 +27,7 @@ func (s *Server) tryAccountLogin(w http.ResponseWriter, r *http.Request, user, p
 		// NAK_OWNER pins who may claim a fresh instance (public deployments)
 		owner = strings.TrimSpace(os.Getenv("NAK_OWNER"))
 	}
-	if owner != "" && !strings.EqualFold(user, owner) {
+	if owner != "" && !auth.SameUser(user, owner) {
 		s.failed(ip)
 		s.renderLogin(w, r, http.StatusUnauthorized, "Diese naknak-Instanz gehört einem anderen NAK-Konto.")
 		return
