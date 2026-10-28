@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Raindancer118/nak-api/internal/auth"
 	"github.com/Raindancer118/nak-api/internal/certs"
 	"github.com/Raindancer118/nak-api/internal/client"
 	"github.com/Raindancer118/nak-api/internal/drift"
@@ -216,17 +217,28 @@ func Run(c *client.Client, version string, now time.Time) *Report {
 	for _, ch := range checks {
 		res := Result{Check: ch.name, Status: StatusOK}
 		if err := safely(ch.run, c); err != nil {
+			res.Status = classify(err)
 			var d *drift.Error
 			if errors.As(err, &d) {
-				res.Status, res.Page, res.Expected, res.Print = StatusDrift, d.Page, d.Expected, d.Fingerprint
-			} else {
-				res.Status = StatusUnavailable
+				res.Page, res.Expected, res.Print = d.Page, d.Expected, d.Fingerprint
+			} else if res.Status == StatusDrift {
+				res.Page, res.Expected = "/", "login with the stored credentials accepted (login format changed? password?)"
 			}
 			res.Detail = err.Error()
 		}
 		r.Results = append(r.Results, res)
 	}
 	return r
+}
+
+// classify: changed structure and a rejected login are drift (worth an issue); everything else
+// (network, maintenance, timeouts) is an outage.
+func classify(err error) string {
+	var d *drift.Error
+	if errors.As(err, &d) || errors.Is(err, auth.ErrLoginRejected) {
+		return StatusDrift
+	}
+	return StatusUnavailable
 }
 
 func safely(f func(*client.Client) error, c *client.Client) (err error) {

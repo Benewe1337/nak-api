@@ -2,6 +2,8 @@ package health
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -10,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Raindancer118/nak-api/internal/auth"
 	"github.com/Raindancer118/nak-api/internal/drift"
 )
 
@@ -74,5 +77,19 @@ func TestSyncCreatesCommentsAndCloses(t *testing.T) {
 		if strings.Contains(c, "Mustermann") || strings.Contains(c, "certificates") {
 			t.Errorf("leak or unexpected call: %s", c)
 		}
+	}
+}
+
+// 28.10.2026 the CIS switched to "20066@nordakademie.de": every check said "unavailable" and nobody
+// was told. A login the CIS rejects is not an outage.
+func TestARejectedLoginIsDriftNotAnOutage(t *testing.T) {
+	if got := classify(fmt.Errorf("CIS login: %w", auth.ErrLoginRejected)); got != StatusDrift {
+		t.Fatalf("rejected login = %q, want drift", got)
+	}
+	if got := classify(errors.New("dial tcp: i/o timeout")); got != StatusUnavailable {
+		t.Fatalf("network error = %q, want unavailable", got)
+	}
+	if got := classify(drift.New("/x", "a table", "")); got != StatusDrift {
+		t.Fatalf("drift = %q", got)
 	}
 }

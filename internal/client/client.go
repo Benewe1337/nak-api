@@ -246,7 +246,7 @@ func (c *Client) read(build func() (*http.Request, error)) (*Page, error) {
 			return nil, ErrNotLoggedIn
 		}
 		if err := c.relogin(gen); err != nil {
-			return nil, fmt.Errorf("%w (re-login failed: %v)", ErrNotLoggedIn, err)
+			return nil, fmt.Errorf("%w (re-login failed: %w)", ErrNotLoggedIn, err)
 		}
 	}
 }
