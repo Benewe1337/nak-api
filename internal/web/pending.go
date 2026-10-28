@@ -104,8 +104,9 @@ type pendingGrade struct {
 	Note     string `json:"note,omitempty"`
 }
 
-// pendingAPI adds the deadline: four lecture weeks counted in the timetable
-// (Bachelor) or six calendar weeks (Master).
+// pendingAPI adds the deadline: four lecture weeks (Bachelor) — weeks in which any
+// semester has lectures (NAK-wide Vorlesungszeiten) plus the own timetable — or six
+// calendar weeks (Master).
 func (s *Server) pendingAPI(w http.ResponseWriter, r *http.Request) {
 	now := s.cfg.Now().In(s.app.Zone)
 	list := s.pendingExams(now)
@@ -117,7 +118,7 @@ func (s *Server) pendingAPI(w http.ResponseWriter, r *http.Request) {
 	master := s.isMaster()
 	var lectures []time.Time
 	if !master {
-		lectures = s.lectureDays(list[0].at, list[len(list)-1].at.AddDate(0, 0, 140))
+		lectures = append(s.lectureDays(list[0].at, list[len(list)-1].at.AddDate(0, 0, 140)), s.periodDays()...)
 	}
 	for _, p := range list {
 		pg := pendingGrade{ExamID: p.ExamID, ModuleNr: p.ModuleNr, Title: p.Title, Written: p.Start}
@@ -125,7 +126,7 @@ func (s *Server) pendingAPI(w http.ResponseWriter, r *http.Request) {
 			pg.Due, pg.DueKnown = due.Format("02.01.2006"), true
 			pg.Overdue = now.After(due.AddDate(0, 0, 1))
 		} else {
-			pg.Note = "Der Stundenplan reicht noch nicht über vier Vorlesungswochen hinaus."
+			pg.Note = "Die bekannten Vorlesungszeiten reichen noch nicht über vier Vorlesungswochen hinaus."
 		}
 		out = append(out, pg)
 	}
@@ -145,6 +146,30 @@ func (s *Server) isMaster() bool {
 
 // lectureDays: days with a lecture, exercise, elective or tutorial in the
 // timetable; exams (K, P) do not make a lecture week.
+// periodDays: one day per week of the NAK-wide lecture periods (cis_vorlesungszeiten), nil if unknown.
+func (s *Server) periodDays() []time.Time {
+	raw, err := s.cachedTool("cis_vorlesungszeiten", tools.Args{})
+	if err != nil {
+		return nil
+	}
+	var vz struct {
+		Quarters []struct {
+			From string `json:"from"`
+			To   string `json:"to"`
+		} `json:"quarters"`
+	}
+	json.Unmarshal(raw, &vz)
+	var periods [][2]time.Time
+	for _, q := range vz.Quarters {
+		from, ok1 := parseDE(q.From, s.app.Zone)
+		to, ok2 := parseDE(q.To, s.app.Zone)
+		if ok1 && ok2 {
+			periods = append(periods, [2]time.Time{from, to})
+		}
+	}
+	return exams.PeriodDays(periods)
+}
+
 func (s *Server) lectureDays(from, to time.Time) []time.Time {
 	raw, err := s.cachedTool("cis_timetable", tools.Args{"from": from.Format("2006-01-02"), "to": to.Format("2006-01-02")})
 	if err != nil {
