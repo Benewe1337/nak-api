@@ -25,7 +25,7 @@ func freshness(tool string) time.Duration {
 		return time.Minute
 	case tool == "nak_dashboard", tool == "nak_deadlines", tool == "moodle_upcoming",
 		strings.HasPrefix(tool, "moodle_assignment"), tool == "moodle_whats_new", strings.HasPrefix(tool, "moodle_forum"),
-		tool == "moodle_quizzes", tool == "moodle_choices", tool == "cis_list_klausuren", tool == "cis_list_seminars",
+		tool == "moodle_quizzes", tool == "moodle_choices", tool == "moodle_scheduler", tool == "cis_list_klausuren", tool == "cis_list_seminars",
 		tool == "cis_transcript_grades", tool == "mensa_account":
 		return 5 * time.Minute
 	case tool == "nak_agenda", tool == "cis_timetable", tool == "moodle_course_contents", tool == "moodle_courses",

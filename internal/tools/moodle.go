@@ -253,6 +253,15 @@ func moodleTools() []*Tool {
 				}
 				return s.QuizReview(id)
 			}),
+		mread("moodle_scheduler", "Terminplaner (mod/scheduler, z.B. mündliche Prüfungen): eigener gebuchter Termin mit Datum, Uhrzeit, Dauer, Lehrkraft, Ort und Notizen, dazu vergangene und noch buchbare Zeitfenster. Nur lesen, kein Buchen/Stornieren.",
+			[]Param{{Name: "cmid", Type: "integer", Required: true, Desc: "Modul-id der Aktivität (cmid aus moodle_course_contents bzw. ?id= in …/mod/scheduler/view.php)"}},
+			func(s *moodle.Service, a *app.App, args Args) (any, error) {
+				id, err := args.ReqInt("cmid")
+				if err != nil {
+					return nil, err
+				}
+				return s.Scheduler(id)
+			}),
 		mread("moodle_choices", "Abstimmungen und Gruppenwahlen eines Kurses mit Optionen, Belegung und eigener Wahl.",
 			[]Param{{Name: "courseid", Type: "integer", Required: true, Desc: "Kurs-id"}},
 			func(s *moodle.Service, a *app.App, args Args) (any, error) {

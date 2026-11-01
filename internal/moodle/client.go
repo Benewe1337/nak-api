@@ -52,6 +52,7 @@ type Client struct {
 	user, pass string
 	mu         sync.Mutex
 	token      string
+	web        *http.Client // cookie session for HTML pages (WebGet)
 	cache      map[string]cachedCall
 }
 

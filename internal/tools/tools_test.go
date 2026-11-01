@@ -283,7 +283,7 @@ func TestStartupListsAllToolsWithSafeSchemas(t *testing.T) {
 			t.Errorf("%s: description must warn", tool.Name)
 		}
 	}
-	if prefixes["cis"] < 40 || prefixes["moodle"] != 31 || prefixes["nak"] != 12 || prefixes["eduvault"] != 3 {
+	if prefixes["cis"] < 40 || prefixes["moodle"] != 32 || prefixes["nak"] != 12 || prefixes["eduvault"] != 3 {
 		t.Errorf("prefixes = %v", prefixes)
 	}
 }
