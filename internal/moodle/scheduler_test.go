@@ -56,14 +56,21 @@ func TestParseSchedulerAvailableAndPast(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(p.Slots) != 3 {
+	if len(p.Slots) != 4 {
 		t.Fatalf("slots = %+v", p.Slots)
 	}
 	if s := p.Slots[0]; s.Status != "past" || s.Location != "Raum 2.14" || s.Notes != "Bitte Ausweis mitbringen" || s.Minutes != 20 {
 		t.Errorf("past = %+v", s)
 	}
-	if s := p.Slots[1]; s.Status != "available" || s.SlotID != 9002 || s.Start != "2026-11-05 10:00" || s.Cancellable {
+	if s := p.Slots[1]; s.Status != "available" || s.SlotID != 9002 || s.Start != "2026-11-05 10:00" || s.End != "2026-11-05 10:30" ||
+		s.Cancellable || s.Teacher != "Alex Lehrkraft" || s.Location != "Raum 2.14" || s.Form == nil || s.Form.What != "bookslot" {
 		t.Errorf("available = %+v", s)
+	}
+	if s := p.Slots[2]; s.Start != "2026-11-05 10:30" || s.Weekday != "Donnerstag" {
+		t.Errorf("date must carry over from the previous row: %+v", s)
+	}
+	if s := p.Slots[3]; s.Form != nil || s.Start != "2026-11-06 14:00" {
+		t.Errorf("full slot has no book button: %+v", s)
 	}
 }
 

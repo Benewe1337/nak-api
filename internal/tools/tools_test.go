@@ -283,7 +283,7 @@ func TestStartupListsAllToolsWithSafeSchemas(t *testing.T) {
 			t.Errorf("%s: description must warn", tool.Name)
 		}
 	}
-	if prefixes["cis"] < 40 || prefixes["moodle"] != 32 || prefixes["nak"] != 12 || prefixes["eduvault"] != 3 {
+	if prefixes["cis"] < 40 || prefixes["moodle"] != 34 || prefixes["nak"] != 12 || prefixes["eduvault"] != 3 {
 		t.Errorf("prefixes = %v", prefixes)
 	}
 }
@@ -376,6 +376,8 @@ func TestNoWriteWithoutConfirm(t *testing.T) {
 		"cis_set_vertiefung":             {"value": "8"},
 		"moodle_mark_notifications_read": {},
 		"moodle_mark_messages_read":      {},
+		"moodle_scheduler_book":          {"cmid": 1, "slotid": 2},
+		"moodle_scheduler_cancel":        {"cmid": 1, "slotid": 2},
 		"moodle_send_message":            {"conversationid": 1, "text": "hi"},
 		"moodle_forum_reply":             {"postid": 1, "message": "x"},
 		"moodle_forum_post":              {"forumid": 1, "subject": "s", "message": "m"},

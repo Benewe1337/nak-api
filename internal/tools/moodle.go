@@ -262,6 +262,24 @@ func moodleTools() []*Tool {
 				}
 				return s.Scheduler(id)
 			}),
+		mwrite("moodle_scheduler_book", "Bucht ein freies Zeitfenster eines Moodle-Terminplaners (mod/scheduler). Vorschau zeigt Request und Slot; slotid aus moodle_scheduler (available, bookable). Prüft Limit/Belegung vorab.",
+			schedulerParams("slotid des freien Zeitfensters (moodle_scheduler → available)"),
+			func(s *moodle.Service, a *app.App, args Args, confirm bool) (any, error) {
+				cmid, slot, err := schedulerIDs(args)
+				if err != nil {
+					return nil, err
+				}
+				return s.SchedulerBook(cmid, slot, confirm)
+			}),
+		mwrite("moodle_scheduler_cancel", "Storniert eine eigene Buchung in einem Moodle-Terminplaner (mod/scheduler). Vorschau zeigt Request und Slot; slotid aus moodle_scheduler (booked).",
+			schedulerParams("slotid der eigenen Buchung (moodle_scheduler → booked)"),
+			func(s *moodle.Service, a *app.App, args Args, confirm bool) (any, error) {
+				cmid, slot, err := schedulerIDs(args)
+				if err != nil {
+					return nil, err
+				}
+				return s.SchedulerCancel(cmid, slot, confirm)
+			}),
 		mread("moodle_choices", "Abstimmungen und Gruppenwahlen eines Kurses mit Optionen, Belegung und eigener Wahl.",
 			[]Param{{Name: "courseid", Type: "integer", Required: true, Desc: "Kurs-id"}},
 			func(s *moodle.Service, a *app.App, args Args) (any, error) {
@@ -354,4 +372,17 @@ func moodleTools() []*Tool {
 				return s.RawCall(args.Str("wsfunction"), p, args.Bool("confirm", false))
 			}},
 	}
+}
+
+func schedulerParams(slotDesc string) []Param {
+	return []Param{{Name: "cmid", Type: "integer", Required: true, Desc: "Modul-id des Terminplaners (cmid)"},
+		{Name: "slotid", Type: "integer", Required: true, Desc: slotDesc}}
+}
+
+func schedulerIDs(args Args) (cmid, slotid int64, err error) {
+	if cmid, err = args.ReqInt("cmid"); err != nil {
+		return
+	}
+	slotid, err = args.ReqInt("slotid")
+	return
 }

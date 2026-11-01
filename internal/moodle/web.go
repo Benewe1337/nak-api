@@ -2,6 +2,7 @@ package moodle
 
 import (
 	"fmt"
+	"github.com/Raindancer118/nak-api/internal/audit"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -82,4 +83,51 @@ func (c *Client) webClient() (*http.Client, error) {
 	}
 	c.web = hc
 	return hc, nil
+}
+
+// ErrSessionExpired: the POST ended on the login form.
+var ErrSessionExpired = &Error{Code: "session_expired", Msg: "Moodle web session expired"}
+
+// WebPost submits a form of the logged-in web UI (write path: guarded by
+// ReadOnly, audited with field names only) and returns the page the redirect
+// chain ends on.
+func (c *Client) WebPost(action string, fields []FormField) (string, error) {
+	c.Invalidate()
+	if c.ReadOnly {
+		return "", ErrReadOnly
+	}
+	names := make([]string, len(fields))
+	form := url.Values{}
+	for i, f := range fields {
+		names[i] = f.Name
+		form.Add(f.Name, f.Value)
+	}
+	u, err := url.Parse(action)
+	if err != nil || !c.sameHost(u) {
+		return "", &Error{Code: "bad_target", Msg: "refusing to post to " + action}
+	}
+	audit.Log(c.AuditDir, "moodle", "WEB", u.Path, names)
+	hc, err := c.webClient()
+	if err != nil {
+		return "", err
+	}
+	resp, err := hc.PostForm(u.String(), form)
+	if err != nil {
+		return "", &Error{Msg: "request to Moodle failed: " + scrubURLError(err)}
+	}
+	defer resp.Body.Close()
+	b, err := io.ReadAll(io.LimitReader(resp.Body, 16<<20))
+	if err != nil {
+		return "", &Error{Msg: "reading Moodle response failed: " + err.Error()}
+	}
+	if resp.Request.URL.Path == loginPath {
+		c.dropWebSession()
+		return "", ErrSessionExpired
+	}
+	return string(b), nil
+}
+
+func (c *Client) sameHost(u *url.URL) bool {
+	b, err := url.Parse(c.Base)
+	return err == nil && u.Host == b.Host && u.Scheme == b.Scheme
 }

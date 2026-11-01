@@ -1,14 +1,21 @@
 <!DOCTYPE html><html><head><title>Orals: Time slots | Moodle</title></head><body><div id="page"><div class="activity-header"><h1 class="h2 mb-0">Time slots</h1></div>
-<!-- synthetic: layout guessed from the booked page, not captured live -->
-<div role="main"><h3>Frühere Zeitfenster</h3><div class="table-responsive"><table class="generaltable">
-<thead><tr><th class="header c0">Datum</th><th class="header c1">Lehrkraft</th><th class="header c2">Ort</th><th class="header c3">Kommentare</th><td class="header c4"></td></tr></thead>
+<!-- DERIVED, not captured live: markup follows render_scheduler_slot_booker / slot_table in upstream mod_scheduler renderer.php
+     (bostelm/moodle-mod_scheduler). Booker table columns: Date, Start, End, Location, Comments, Teacher, Group session, button;
+     the date is blank when it repeats the previous row. Book button = single_button POST with id, sesskey, what=bookslot, slotid. -->
+<div role="main"><h3>Besuchte Zeitfenster</h3><div class="table-responsive"><table class="generaltable">
+<thead><tr><th class="header c0">Datum</th><th class="header c1">Lehrkraft</th><th class="header c2">Ort</th><th class="header c3">Kommentare</th></tr></thead>
 <tbody><tr><td class="cell c0"><div class="datelabel">Montag, 5. Oktober 2026</div><div class="timelabel">09:00 &ndash; 09:20</div></td>
-<td class="cell c1"><a href="https://m/user/view.php?id=2001&amp;course=42">Alex Lehrkraft</a></td><td class="cell c2">Raum 2.14</td><td class="cell c3">Bitte Ausweis mitbringen</td><td class="cell c4"></td></tr></tbody></table></div>
-<h3>Verfügbare Zeitfenster</h3><div class="table-responsive"><table class="generaltable">
-<thead><tr><th class="header c0">Datum</th><th class="header c1">Lehrkraft</th><th class="header c2">Ort</th><th class="header c3">Kommentare</th><td class="header c4"></td></tr></thead>
-<tbody><tr><td class="cell c0"><div class="datelabel">Donnerstag, 5. November 2026</div><div class="timelabel">10:00 &ndash; 10:30</div></td>
-<td class="cell c1"><a href="https://m/user/view.php?id=2001&amp;course=42">Alex Lehrkraft</a></td><td class="cell c2">Raum 2.14</td><td class="cell c3"></td>
-<td class="cell c4"><form method="post" action="https://m/mod/scheduler/view.php"><input type="hidden" name="what" value="bookslot"><input type="hidden" name="slotid" value="9002"><button type="submit">Buchen</button></form></td></tr>
-<tr><td class="cell c0"><div class="datelabel">Donnerstag, 5. November 2026</div><div class="timelabel">10:30 &ndash; 11:00</div></td>
-<td class="cell c1"><a href="https://m/user/view.php?id=2001&amp;course=42">Alex Lehrkraft</a></td><td class="cell c2">Raum 2.14</td><td class="cell c3"></td>
-<td class="cell c4"><form method="post" action="https://m/mod/scheduler/view.php"><input type="hidden" name="what" value="bookslot"><input type="hidden" name="slotid" value="9003"><button type="submit">Buchen</button></form></td></tr></tbody></table></div></div></div></body></html>
+<td class="cell c1"><a href="https://m/user/view.php?id=2001&amp;course=42">Alex Lehrkraft</a></td><td class="cell c2">Raum 2.14</td><td class="cell c3">Bitte Ausweis mitbringen</td></tr></tbody></table></div>
+<div class="studentbookingmessage">Sie können 1 Termin buchen.</div>
+<h3>Verfügbare Zeitfenster</h3><div class="table-responsive"><table class="generaltable" id="slotbookertable">
+<thead><tr><th class="header c0">Datum</th><th class="header c1">Beginn</th><th class="header c2">Ende</th><th class="header c3">Ort</th><th class="header c4">Kommentare</th><th class="header c5">Lehrkraft</th><th class="header c6">Gruppensitzung</th><th class="header c7"></th></tr></thead>
+<tbody>
+<tr><td class="cell c0">Donnerstag, 5. November 2026</td><td class="cell c1">10:00</td><td class="cell c2">10:30</td><td class="cell c3">Raum 2.14</td><td class="cell c4"></td>
+<td class="cell c5"><a href="https://m/user/view.php?id=2001&amp;course=42">Alex Lehrkraft</a></td><td class="cell c6">Nein</td>
+<td class="cell c7"><div class="singlebutton"><form method="post" action="https://m/mod/scheduler/view.php"><input type="hidden" name="id" value="777"><input type="hidden" name="sesskey" value="SESSKEY1"><input type="hidden" name="what" value="bookslot"><input type="hidden" name="slotid" value="9002"><button type="submit" class="btn btn-secondary">Zeitfenster buchen</button></form></div></td></tr>
+<tr><td class="cell c0"></td><td class="cell c1">10:30</td><td class="cell c2">11:00</td><td class="cell c3">Raum 2.14</td><td class="cell c4"></td>
+<td class="cell c5"><a href="https://m/user/view.php?id=2001&amp;course=42">Alex Lehrkraft</a></td><td class="cell c6">Nein</td>
+<td class="cell c7"><div class="singlebutton"><form method="post" action="https://m/mod/scheduler/view.php"><input type="hidden" name="id" value="777"><input type="hidden" name="sesskey" value="SESSKEY1"><input type="hidden" name="what" value="bookslot"><input type="hidden" name="slotid" value="9003"><button type="submit" class="btn btn-secondary">Zeitfenster buchen</button></form></div></td></tr>
+<tr><td class="cell c0">Freitag, 6. November 2026</td><td class="cell c1">14:00</td><td class="cell c2">14:30</td><td class="cell c3"></td><td class="cell c4"></td>
+<td class="cell c5"><a href="https://m/user/view.php?id=2001&amp;course=42">Alex Lehrkraft</a></td><td class="cell c6">Vollständig</td><td class="cell c7"></td></tr>
+</tbody></table></div></div></div></body></html>
