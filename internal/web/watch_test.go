@@ -432,3 +432,22 @@ func TestManualExamCountsAsPendingUntilGraded(t *testing.T) {
 		t.Fatalf("remove: %d", res.StatusCode)
 	}
 }
+
+// The page marks "(m)" (oral supplement allowed), the PDF does not: the same
+// result seen by both checks must not ping-pong between them.
+func TestPageAndPDFSpellingDoNotFlipFlop(t *testing.T) {
+	seen := map[string]string{}
+	page := json.RawMessage(`{"overview":{"modules":[{"module_nr":"I151","title":"Softwaretechnik","grade":"5,0 (m) (1.Versuch)"}]}}`)
+	pdf := json.RawMessage(`{"modules":[{"module_nr":"I151","title":"Softwaretechnik","grade":"5,0 (1. Versuch)"}]}`)
+	if n := diffGrades(page, seen); len(n) != 1 {
+		t.Fatalf("first sight: %+v", n)
+	}
+	for i := 0; i < 3; i++ {
+		if n := diffTranscript(pdf, seen); len(n) != 0 {
+			t.Fatalf("PDF round %d: %+v", i, n)
+		}
+		if n := diffGrades(page, seen); len(n) != 0 {
+			t.Fatalf("page round %d: %+v", i, n)
+		}
+	}
+}

@@ -101,6 +101,8 @@ var spaceRe = regexp.MustCompile(`\s+`)
 // "4,0 (2.Versuch)" the same value; markers like "*" (recognised) go.
 func NormalizeGrade(g string) string {
 	g = strings.ToLower(spaceRe.ReplaceAllString(g, ""))
+	// "(m)" only says an oral supplement is allowed; the PDF leaves it out
+	g = strings.ReplaceAll(g, "(m)", "")
 	return strings.TrimRight(g, "*⁂")
 }
 

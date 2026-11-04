@@ -47,7 +47,7 @@ func TestParseTranscriptText(t *testing.T) {
 }
 
 func TestSameGrade(t *testing.T) {
-	for _, c := range [][2]string{{"4,0 (2. Versuch)", "4,0 (2.Versuch)"}, {"1,7", " 1,7 "}, {"2,0 *", "2,0"}, {"bestanden", "Bestanden"}} {
+	for _, c := range [][2]string{{"4,0 (2. Versuch)", "4,0 (2.Versuch)"}, {"1,7", " 1,7 "}, {"2,0 *", "2,0"}, {"bestanden", "Bestanden"}, {"5,0 (m) (1.Versuch)", "5,0 (1. Versuch)"}, {"4,0 (m)", "4,0"}} {
 		if NormalizeGrade(c[0]) != NormalizeGrade(c[1]) {
 			t.Errorf("%q and %q should be the same grade", c[0], c[1])
 		}
