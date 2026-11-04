@@ -130,6 +130,7 @@ func (o *Overview) ApplyTranscript(t *TranscriptGrades, pdfNewer bool) []string 
 		m.Grade = tg.Grade
 		m.GradeValue, m.Attempt, m.Status = parseGrade(tg.Grade)
 		m.Recognized = strings.Contains(tg.Grade, "*")
+		m.OralAllowed = strings.Contains(tg.Grade, "(m)")
 		m.EntryDate = t.Date
 		if m.Credits == "" {
 			m.Credits = tg.Credits

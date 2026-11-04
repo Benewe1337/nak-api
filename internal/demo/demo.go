@@ -34,6 +34,7 @@ var modules = []module{
 	{"W110", "Allgemeine Volkswirtschaftslehre", "2,0", "bestanden", "10.12.2025", "Prof. Tomas Reyes", 2.0, 1, 5, 2007},
 	{"I180", "Wissenschaftliches Arbeiten", "bestanden", "bestanden", "01.06.2025", "Hanna Weiss", 0, 1, 3, 2008},
 	{"I172", "Betriebssysteme", "2,7", "bestanden", "18.02.2026", "Dr. Paul Engel", 2.7, 1, 6, 2009},
+	{"I174", "Statistik", "5,0 (m) (1.Versuch)", "nicht bestanden", "20.02.2026", "Dr. Lena Moreau", 5.0, 1, 5, 2010},
 }
 
 func lectureDays(now time.Time) []time.Time {
@@ -152,7 +153,7 @@ func grades() map[string]any {
 	passed, open, earned := 0, 0, 0
 	sum, weight := 0.0, 0.0
 	for _, m := range modules {
-		row := map[string]any{"module_nr": m.nr, "title": m.title, "grade": m.grade, "status": m.status, "exam_date": m.examDate, "entry_date": m.examDate, "credits": fmt.Sprint(m.credits), "attempt": m.attempt}
+		row := map[string]any{"module_nr": m.nr, "title": m.title, "grade": m.grade, "status": m.status, "exam_date": m.examDate, "entry_date": m.examDate, "credits": fmt.Sprint(m.credits), "attempt": m.attempt, "oral_supplement": strings.Contains(m.grade, "(m)")}
 		if m.value > 0 {
 			row["grade_value"] = m.value
 			sum += m.value * float64(m.credits)
@@ -337,7 +338,7 @@ func Registry() *tools.Registry {
 				if m.nr == nr {
 					out["title"] = m.title
 					if m.grade != "" {
-						out["grade"] = map[string]any{"module_nr": m.nr, "title": m.title, "grade": m.grade, "grade_value": m.value, "status": m.status, "exam_date": m.examDate, "attempt": m.attempt}
+						out["grade"] = map[string]any{"module_nr": m.nr, "title": m.title, "grade": m.grade, "grade_value": m.value, "status": m.status, "exam_date": m.examDate, "attempt": m.attempt, "oral_supplement": strings.Contains(m.grade, "(m)")}
 						out["distribution"] = map[string]any{"average": 2.6, "count": 84, "lecturers": []string{m.lecturer}, "buckets": []map[string]any{{"grade": "1,0", "count": 6}, {"grade": "1,3", "count": 9}, {"grade": "1,7", "count": 12}, {"grade": "2,0", "count": 14}, {"grade": "2,3", "count": 11}, {"grade": "2,7", "count": 10}, {"grade": "3,0", "count": 8}, {"grade": "3,3", "count": 5}, {"grade": "3,7", "count": 4}, {"grade": "4,0", "count": 3}, {"grade": "5,0", "count": 2}}, "percentile": 22}
 					}
 					out["studienplan"] = map[string]any{"credits": m.credits, "exam_form_name": "Klausur (90 Minuten)", "exam_semester": 3}

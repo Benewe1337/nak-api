@@ -393,7 +393,7 @@ function gradeSummary([g, progress]) {
     h("ul", { class: "rows" }, recent.map((m, j) => h("li", {}, h("a", { class: "row", href: `#/modul/${firstNr(m.module_nr)}`, vars: { "--j": j } },
       h("span", { class: "dot", "data-src": "cis" }),
       h("span", { class: "t" }, m.title, h("span", { class: "s", text: m.entry_date || m.exam_date })),
-      h("span", { class: `chip sens ${gradeClass(m)}`, text: m.grade }))))),
+      oralChip(m), h("span", { class: `chip sens ${gradeClass(m)}`, text: gradeText(m) }))))),
   ];
 }
 
@@ -652,6 +652,13 @@ function gradeCalculator(g, p) {
     h("p", { class: "empty fine-note", text: "Hochrechnung, gewichtet nach Credits." })];
 }
 
+// "(m)" is the CIS footnote "eine mündliche Ergänzungsprüfung ist zulässig",
+// not part of the grade: shown as its own chip instead
+function gradeText(m) { return (m?.grade || "").replace(/\s*\(m\)/, ""); }
+function oralChip(m) {
+  return m?.oral_supplement && h("span", { class: "chip sens due", title: "Laut CIS ist eine mündliche Ergänzungsprüfung zulässig", text: "mündl. Ergänzung" });
+}
+
 function gradeClass(m) {
   const s = `${m.status || ""} ${m.grade || ""}`.toLowerCase();
   if (s.includes("nicht") || (m.grade_value && m.grade_value > 4)) return "bad";
@@ -702,7 +709,7 @@ async function gradesPage(root) {
         h("td", { class: "nr", text: m.exam_date || "" }),
         h("td", { class: "nr r", text: m.attempt ? `${m.attempt}.` : "" }),
         h("td", { class: "nr r", text: m.credits || "" }),
-        h("td", { class: "grade" }, h("span", { class: `chip sens ${gradeClass(m)}`, text: m.grade || m.status || "–" })))));
+        h("td", { class: "grade" }, oralChip(m), h("span", { class: `chip sens ${gradeClass(m)}`, text: gradeText(m) || m.status || "–" })))));
       if (!rows.length) body.append(h("tr", {}, h("td", { colspan: 6, class: "empty", text: "Keine Module in dieser Ansicht." })));
     };
     const filters = h("div", { class: "filters", role: "group", "aria-label": "Filter" },
@@ -1352,7 +1359,7 @@ function matches(q, words) {
 }
 
 function unitLabel(u) {
-  if (u.grade?.grade) return `Note ${u.grade.grade}`;
+  if (u.grade?.grade) return `Note ${gradeText(u.grade)}`;
   if (u.courses.some((c) => c.state === "current")) return "aktuell";
   return u.nr;
 }
@@ -1377,7 +1384,8 @@ function unitCard(u, i) {
       h("span", { class: "name", text: u.title || u.nr }),
       h("span", { class: "tags" },
         u.courses.some((c) => c.state === "current") && h("span", { class: "chip moodle", text: "läuft" }),
-        u.grade?.grade ? h("span", { class: `chip sens ${gradeClass(u.grade)}`, text: u.grade.grade }) : u.grade?.status && h("span", { class: `chip sens ${gradeClass(u.grade)}`, text: u.grade.status }),
+        oralChip(u.grade),
+        u.grade?.grade ? h("span", { class: `chip sens ${gradeClass(u.grade)}`, text: gradeText(u.grade) }) : u.grade?.status && h("span", { class: `chip sens ${gradeClass(u.grade)}`, text: u.grade.status }),
         u.courses.length > 0 && h("span", { class: "chip", text: `${u.courses.length} Moodle-Kurs${u.courses.length > 1 ? "e" : ""}` }))));
   t.querySelector(".tile-head").remove();
   return t;
@@ -1492,6 +1500,7 @@ function gradeTile(m, u) {
   out.push(h("dl", { class: "kv meter" },
     h("dt", { text: "Prüfung" }), h("dd", { text: g.exam_date || "–" }),
     h("dt", { text: "Versuch" }), h("dd", { text: g.attempt || "–" }),
+    g.oral_supplement && [h("dt", { text: "Ergänzung" }), h("dd", { class: "sens", text: "Mündliche Ergänzungsprüfung zulässig (laut CIS)" })],
     g.source === "notenuebersicht" && [h("dt", { text: "Quelle" }), h("dd", { text: `Notenübersicht vom ${g.entry_date || "–"}, noch nicht in der Leistungsübersicht` })],
     d?.count > 0 && [h("dt", { text: "Jahrgang" }), h("dd", { text: `Schnitt ${String(d.average).replace(".", ",")} · ${d.count} Ergebnisse${d.percentile ? ` · besser als ${Math.round(d.percentile)} %` : ""}` })]));
   if (d?.buckets?.length) {
@@ -1595,7 +1604,7 @@ function examTimeline(u, m, hist, current) {
         h("div", { class: "tl-head" },
           h("b", { text: `${fmtDay.format(r.at)}${/00:00/.test(fmtTime.format(r.at)) ? "" : ` · ${fmtTime.format(r.at)}`}` }),
           r.upcoming && h("span", { class: `chip ${r.registered ? "ok" : "due"}`, text: r.registered ? (dayDiff(r.at) === 0 ? "heute · angemeldet" : `angemeldet · ${relDay(dayDiff(r.at))}`) : "nicht angemeldet" }),
-          !r.upcoming && res && h("span", { class: `chip ${cls}`, text: res.grade }),
+          !r.upcoming && res && h("span", { class: `chip ${cls}`, text: gradeText(res) }),
           !r.upcoming && !res && h("span", { class: "chip", text: r.registered ? "Ergebnis steht aus" : "vergangen" })),
         h("span", { class: "s", text: [r.title, r.attempt ? `${r.attempt}. Versuch` : "", r.dozenten.map((d) => d.includes(",") ? d.split(",").map((x) => x.trim()).reverse().join(" ") : d).join(", ")].filter(Boolean).join(" · ") }),
         r.upcoming && r.deadlines && h("span", { class: "s", text: [r.deadlines.register_closes && `Anmeldung bis ${r.deadlines.register_closes}`, r.deadlines.deregister_until && `Abmeldung bis ${r.deadlines.deregister_until}`].filter(Boolean).join(" · ") }),

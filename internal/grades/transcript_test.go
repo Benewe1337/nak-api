@@ -61,7 +61,7 @@ func TestApplyTranscript(t *testing.T) {
 	o := &Overview{Modules: []ModuleGrade{
 		{ModuleNr: "I140", Title: "Automatentheorie", Grade: "3,7", Status: StatusPassed, Credits: "5", EntryDate: "01.09.2026"},
 		{ModuleNr: "I166", Title: "OOP", Status: StatusOpen, Credits: "6", ExamDate: "25.09.2026"},
-		{ModuleNr: "I168", Title: "Diskrete Mathematik 2", Grade: "5,0", Status: StatusFailed, ExamDate: "01.03.2026", EntryDate: "10.03.2026"},
+		{ModuleNr: "I168", Title: "Diskrete Mathematik 2", Grade: "5,0 (m)", Status: StatusFailed, OralAllowed: true, ExamDate: "01.03.2026", EntryDate: "10.03.2026"},
 		{ModuleNr: "A222,I222", Title: "Diskrete Mathematik 3", Status: StatusOpen},
 	}}
 	tg := &TranscriptGrades{Date: "02.10.2026", Modules: []TranscriptGrade{
@@ -72,7 +72,7 @@ func TestApplyTranscript(t *testing.T) {
 		{ModuleNr: "I222", Title: "Diskrete Mathematik 3", Grade: "2,3"},
 	}}
 	older := &Overview{Modules: append([]ModuleGrade(nil), o.Modules...)}
-	if c := older.ApplyTranscript(tg, false); strings.Join(c, ",") != "I166,I179,I222" || older.Find("I168").Grade != "5,0" {
+	if c := older.ApplyTranscript(tg, false); strings.Join(c, ",") != "I166,I179,I222" || older.Find("I168").Grade != "5,0 (m)" {
 		t.Errorf("an older PDF only fills gaps: %v %+v", c, older.Find("I168"))
 	}
 	changed := o.ApplyTranscript(tg, true)
@@ -90,7 +90,7 @@ func TestApplyTranscript(t *testing.T) {
 		t.Errorf("exam date kept, entry date from the PDF: %+v", m)
 	}
 	m = o.Find("I168")
-	if m.Attempt != 2 || m.Status != StatusPassed || m.ExamDate != "" || m.EntryDate != "02.10.2026" {
+	if m.Attempt != 2 || m.Status != StatusPassed || m.ExamDate != "" || m.EntryDate != "02.10.2026" || m.OralAllowed {
 		t.Errorf("changed grade drops the old attempt's dates: %+v", m)
 	}
 	if m := o.Find("I179"); m == nil || m.Status != StatusPassed || m.Credits != "6" || m.Source != SourceTranscript {
